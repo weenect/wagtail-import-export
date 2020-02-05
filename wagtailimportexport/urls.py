@@ -6,7 +6,7 @@ from wagtailimportexport import views
 
 app_name = 'wagtailimportexport'
 urlpatterns = [
-    url(r'^export/(?P<page_id>\d+)/$', views.export, name='export'),
+
 ]
 
 if getattr(settings, "WAGTAILIMPORTEXPORT_EXPORT_UNPUBLISHED", False):

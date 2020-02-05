@@ -1,40 +1,36 @@
-import json
+import zipfile
 
 from wagtailimportexport.compat import Page
 
 
 def export_pages(root_page, export_unpublished=False):
     """
-    Create a JSON defintion of part of a site's page tree starting
-    from root_page and descending into its descendants
+    Export a part of this source site's page tree to a ZIP file, according to
+    the following specifications:
 
-    By default only published pages are exported.
+    - the ZIP file contains one .xls file per exported page
+    - each .xls file is named `<page_model_name>-<page_id>.xls`
+    - each .xls file contains data formatted this way:
 
-    If a page is unpublished it and all its descendants are pruned even
-    if some of those descendants are themselves published. This ensures
-    that there are no orphan pages when the subtree is created in the
-    destination site.
+        +------------+----------+-----------+-----------+--
+        | Field name |    fr    |    en     |    de     |
+        +------------+----------+-----------+-----------+--
+        | title      | Le titre | The title | Der Titel |
+        | body       | Le corps | The body  | Der Körper|
+        +------------+----------+-----------+-----------+--
+        |            |          |           |           |
 
-    If export_unpublished=True the root_page and all its descendants
-    are included.
+    Return the path to the created ZIP file.
+
     """
     pages = Page.objects.descendant_of(root_page, inclusive=True).order_by('path').specific()
     if not export_unpublished:
         pages = pages.filter(live=True)
 
-    page_data = []
-    exported_paths = set()
-    for (i, page) in enumerate(pages):
-        parent_path = page.path[:-(Page.steplen)]
-        # skip over pages whose parents haven't already been exported
-        # (which means that export_unpublished is false and the parent was unpublished)
-        if i == 0 or (parent_path in exported_paths):
-            page_data.append({
-                'content': json.loads(page.to_json()),
-                'model': page.content_type.model,
-                'app_label': page.content_type.app_label,
-            })
-            exported_paths.add(page.path)
-    return {
-        'pages': page_data
-    }
+    export_filename = 'wagtail-export.zip'
+
+    with zipfile.ZipFile(export_filename, 'w') as export_zip:
+        for page in pages:
+            export_zip.write(page.export_translations())
+
+    return export_filename
